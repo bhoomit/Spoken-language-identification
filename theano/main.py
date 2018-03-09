@@ -30,11 +30,11 @@ args = parser.parse_args()
 print args
 
 if (args.equal_split):
-    train_listfile = open("/mnt/hdd615/Hrayr/Spoken-language-identification/trainEqual.csv", "r")
-    test_listfile = open("/mnt/hdd615/Hrayr/Spoken-language-identification/valEqual.csv", "r")
+    train_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/trainEqual.csv", "r")
+    test_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/valEqual.csv", "r")
 else:
-    train_listfile = open("/mnt/hdd615/Hrayr/Spoken-language-identification/trainingDataNew.csv", "r")
-    test_listfile = open("/mnt/hdd615/Hrayr/Spoken-language-identification/valDataNew.csv", "r")
+    train_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/trainingDataNew.csv", "r")
+    test_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/valDataNew.csv", "r")
 
 train_list_raw = train_listfile.readlines()
 test_list_raw = test_listfile.readlines()
@@ -48,8 +48,8 @@ test_listfile.close()
 args_dict = dict(args._get_kwargs())
 args_dict['train_list_raw'] = train_list_raw
 args_dict['test_list_raw'] = test_list_raw
-args_dict['png_folder'] = "/mnt/hdd615/Hrayr/Spoken-language-identification/train/png/"
-    
+args_dict['png_folder'] = "/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/pngaugm/"
+
 
 
 print "==> using network %s" % args.network
@@ -59,10 +59,10 @@ network = network_module.Network(**args_dict)
 
 network_name = args.prefix + '%s.bs%d%s%s' % (
     network.say_name(),
-    args.batch_size, 
-    ".bn" if args.batch_norm else "", 
+    args.batch_size,
+    ".bn" if args.batch_norm else "",
     (".d" + str(args.dropout)) if args.dropout>0 else "")
-    
+
 print "==> network_name:", network_name
 
 
@@ -86,7 +86,7 @@ def do_epoch(mode, epoch):
         answers = step_data["answers"]
         current_loss = step_data["current_loss"]
         log = step_data["log"]
-        
+
         avg_loss += current_loss
         if (mode == "predict" or mode == "predict_on_train"):
             all_prediction.append(prediction)
@@ -96,26 +96,26 @@ def do_epoch(mode, epoch):
                 current_loss += step_data["current_loss"]
             prediction /= args.forward_cnt
             current_loss /= args.forward_cnt
-            
+
         for x in answers:
             y_true.append(x)
-        
+
         for x in prediction.argmax(axis=1):
             y_pred.append(x)
-        
+
         if ((i + 1) % args.log_every == 0):
             cur_time = time.time()
-            print ("  %sing: %d.%d / %d \t loss: %3f \t avg_loss: %.5f \t %s \t time: %.2fs" % 
-                (mode, epoch, (i + 1) * args.batch_size, batches_per_epoch * args.batch_size, 
+            print ("  %sing: %d.%d / %d \t loss: %3f \t avg_loss: %.5f \t %s \t time: %.2fs" %
+                (mode, epoch, (i + 1) * args.batch_size, batches_per_epoch * args.batch_size,
                  current_loss, avg_loss / (i + 1), log, cur_time - prev_time))
             prev_time = cur_time
-      
-    
+
+
     #print "confusion matrix:"
     #print metrics.confusion_matrix(y_true, y_pred)
     accuracy = sum([1 if t == p else 0 for t, p in zip(y_true, y_pred)])
     print "accuracy: %.2f percent" % (accuracy * 100.0 / batches_per_epoch / args.batch_size)
-    
+
     if (mode == "predict"):
         all_prediction = np.vstack(all_prediction)
         pred_filename = "predictions/" + ("equal_split." if args.equal_split else "") + \
@@ -123,19 +123,19 @@ def do_epoch(mode, epoch):
         with open(pred_filename, 'w') as pred_csv:
             for x in all_prediction:
                 print >> pred_csv, ",".join([("%.6f" % prob) for prob in x])
-                    
+
     return avg_loss / batches_per_epoch
 
 
 if args.mode == 'train':
-    print "==> training"   	
+    print "==> training"
     for epoch in range(start_epoch, args.epochs):
         do_epoch('train', epoch)
         test_loss = do_epoch('test', epoch)
         state_name = 'states/%s.epoch%d.test%.5f.state' % (network_name, epoch, test_loss)
         print "==> saving ... %s" % state_name
         network.save_params(state_name, epoch)
-        
+
 elif args.mode == 'test':
     do_epoch('predict', 0)
 elif args.mode == 'test_on_train':
