@@ -6,6 +6,8 @@ import time
 import json
 import importlib
 
+root = '/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification'
+
 print "==> parsing input arguments"
 parser = argparse.ArgumentParser()
 
@@ -30,11 +32,11 @@ args = parser.parse_args()
 print args
 
 if (args.equal_split):
-    train_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/trainEqual.csv", "r")
-    test_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/valEqual.csv", "r")
+    train_listfile = open(root + "/data/trainEqual.csv", "r")
+    test_listfile = open(root + "/data/valEqual.csv", "r")
 else:
-    train_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/trainingDataNew.csv", "r")
-    test_listfile = open("/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/valDataNew.csv", "r")
+    train_listfile = open(root + "/data/trainingDataNew.csv", "r")
+    test_listfile = open(root + "/data/valDataNew.csv", "r")
 
 train_list_raw = train_listfile.readlines()
 test_list_raw = test_listfile.readlines()
@@ -48,9 +50,7 @@ test_listfile.close()
 args_dict = dict(args._get_kwargs())
 args_dict['train_list_raw'] = train_list_raw
 args_dict['test_list_raw'] = test_list_raw
-args_dict['png_folder'] = "/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification/data/pngaugm/"
-
-
+args_dict['png_folder'] = root + '/data/png/'
 
 print "==> using network %s" % args.network
 network_module = importlib.import_module("networks." + args.network)
