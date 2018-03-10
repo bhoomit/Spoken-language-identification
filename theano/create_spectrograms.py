@@ -67,7 +67,7 @@ def logscale_spec(spec, sr=44100, factor=20., alpha=1.0, f0=0.9, fmax=1):
 """ plot spectrogram"""
 def plotstft(audiopath, binsize=2**10, plotpath=None, colormap="gray", channel=0, name='tmp.png', alpha=1, offset=0):
     samplerate, samples = wav.read(audiopath)
-    samples = samples[:, channel]
+    # samples = samples[:, channel]
     s = stft(samples, binsize)
 
     sshow, freq = logscale_spec(s, factor=1, sr=samplerate, alpha=alpha)
@@ -85,22 +85,23 @@ def plotstft(audiopath, binsize=2**10, plotpath=None, colormap="gray", channel=0
     image.save(name)
 
 
-file = open('./data/trainingData.csv', 'r')
-for iter, line in enumerate(file.readlines()[1:]): # first line of traininData.csv is header (only for trainingData.csv)
-    filepath = line.split(',')[0]
-    filename = filepath[:-4]
-    wavfile = 'tmp.wav'
-    os.system('mpg123 -w ' + wavfile + ' ' + root + '/data/sorted/' + filepath)
-    """
-    for augmentIdx in range(0, 20):
-        alpha = np.random.uniform(0.9, 1.1)
-        offset = np.random.randint(90)
-        plotstft(wavfile, channel=0, name='/home/brainstorm/data/language/train/pngaugm/'+filename+'.'+str(augmentIdx)+'.png',
-                 alpha=alpha, offset=offset)
-    """
-    # we create only one spectrogram for each speach sample
-    # we don't do vocal tract length perturbation (alpha=1.0)
-    # also we don't crop 9s part from the speech
-    plotstft(wavfile, channel=0, name='./data/png/'+filename+'.png', alpha=1.0)
-    os.remove(wavfile)
-    print "processed %d files" % (iter + 1)
+def run():
+    file = open('./data/trainingData.csv', 'r')
+    for iter, line in enumerate(file.readlines()[1:]): # first line of traininData.csv is header (only for trainingData.csv)
+        filepath = line.split(',')[0]
+        filename = filepath[:-4]
+        wavfile = 'tmp.wav'
+        os.system('mpg123 -w ' + wavfile + ' ' + root + '/data/sorted/' + filepath)
+        """
+        for augmentIdx in range(0, 20):
+            alpha = np.random.uniform(0.9, 1.1)
+            offset = np.random.randint(90)
+            plotstft(wavfile, channel=0, name='/home/brainstorm/data/language/train/pngaugm/'+filename+'.'+str(augmentIdx)+'.png',
+                     alpha=alpha, offset=offset)
+        """
+        # we create only one spectrogram for each speach sample
+        # we don't do vocal tract length perturbation (alpha=1.0)
+        # also we don't crop 9s part from the speech
+        plotstft(wavfile, channel=0, name='./data/png/'+filename+'.png', alpha=1.0)
+        os.remove(wavfile)
+        print "processed %d files" % (iter + 1)

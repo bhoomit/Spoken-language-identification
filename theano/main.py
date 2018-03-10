@@ -5,6 +5,11 @@ import argparse
 import time
 import json
 import importlib
+import cPickle as pickle
+import lasagne
+import time
+from create_spectrograms import plotstft
+import os
 
 root = '/Users/Bhoomit/work/hackathons/gi/Spoken-language-identification'
 
@@ -56,19 +61,18 @@ print "==> using network %s" % args.network
 network_module = importlib.import_module("networks." + args.network)
 network = network_module.Network(**args_dict)
 
-
 network_name = args.prefix + '%s.bs%d%s%s' % (
     network.say_name(),
     args.batch_size,
     ".bn" if args.batch_norm else "",
-    (".d" + str(args.dropout)) if args.dropout>0 else "")
+    (".d" + str(args.dropout)) if args.dropout > 0 else "")
 
 print "==> network_name:", network_name
-
 
 start_epoch = 0
 if args.load_state != "":
     start_epoch = network.load_state(args.load_state) + 1
+
 
 def do_epoch(mode, epoch):
     # mode is 'train' or 'test' or 'predict'
@@ -106,25 +110,25 @@ def do_epoch(mode, epoch):
         if ((i + 1) % args.log_every == 0):
             cur_time = time.time()
             print ("  %sing: %d.%d / %d \t loss: %3f \t avg_loss: %.5f \t %s \t time: %.2fs" %
-                (mode, epoch, (i + 1) * args.batch_size, batches_per_epoch * args.batch_size,
+                (mode, epoch, (i + 1) * network.batch_size, batches_per_epoch * network.batch_size,
                  current_loss, avg_loss / (i + 1), log, cur_time - prev_time))
             prev_time = cur_time
 
-
+        print y_pred[-1]
     #print "confusion matrix:"
     #print metrics.confusion_matrix(y_true, y_pred)
-    accuracy = sum([1 if t == p else 0 for t, p in zip(y_true, y_pred)])
-    print "accuracy: %.2f percent" % (accuracy * 100.0 / batches_per_epoch / args.batch_size)
+    # accuracy = sum([1 if t == p else 0 for t, p in zip(y_true, y_pred)])
+    # print "accuracy: %.2f percent" % (accuracy * 100.0 / batches_per_epoch / args.batch_size)
 
     if (mode == "predict"):
+        # print(all_prediction)
         all_prediction = np.vstack(all_prediction)
-        pred_filename = "predictions/" + ("equal_split." if args.equal_split else "") + \
-                         args.load_state[args.load_state.rfind('/')+1:] + ".csv"
-        with open(pred_filename, 'w') as pred_csv:
-            for x in all_prediction:
-                print >> pred_csv, ",".join([("%.6f" % prob) for prob in x])
-
-    return avg_loss / batches_per_epoch
+        x = all_prediction[-1]
+        out = [("%.6f" % prob) for prob in x]
+        # print >> pred_csv, ",".join(out)
+        pred = [(x, it) for it, x in enumerate(out)]
+        pred = sorted(pred, reverse=True)
+        return pred[0][1]
 
 
 if args.mode == 'train':
@@ -137,8 +141,61 @@ if args.mode == 'train':
         network.save_params(state_name, epoch)
 
 elif args.mode == 'test':
+    start = time.time()
+    # network.batch_size = 1
+    network.test_list_raw = network.test_list_raw[:32]
     do_epoch('predict', 0)
+    print(time.time() - start)
 elif args.mode == 'test_on_train':
     do_epoch('predict_on_train', 0)
 else:
     raise Exception("unknown mode")
+
+
+from flask import Flask, request, jsonify
+import traceback, requests
+
+application = Flask(__name__)
+
+languages = {
+    0: 'hindi',
+    2: 'kannada'
+}
+
+@application.route('/predict/', methods=['POST'])
+def hello_world():
+    try:
+        body = request.get_json()
+        url = body.get('url', '').replace('https', 'http') + '.mp3'
+        filename = int(time.time() * 1000000)
+        mp3file = '/logs/{0}.mp3'.format(filename)
+        r = requests.get(url, allow_redirects=True)
+        open(mp3file, 'wb').write(r.content)
+        wavfile = '/logs/{0}.wav'.format(filename)
+        os.system('mpg123 -w {0} {1}'.format(wavfile, mp3file))
+
+        """
+        for augmentIdx in range(0, 20):
+            alpha = np.random.uniform(0.9, 1.1)
+            offset = np.random.randint(90)
+            plotstft(wavfile, channel=0, name='/home/brainstorm/data/language/train/pngaugm/'+filename+'.'+str(augmentIdx)+'.png',
+                     alpha=alpha, offset=offset)
+        """
+        # we create only one spectrogram for each speach sample
+        # we don't do vocal tract length perturbation (alpha=1.0)
+        # also we don't crop 9s part from the speech
+        # plotstft('tmp.wav', channel=0, name='./data/png/{0}.png'.format(filename), alpha=1.0)
+        plotstft(wavfile, channel=0, name='./data/png/{0}.png'.format(filename), alpha=1.0)
+        start = time.time()
+        network.test_list_raw[-1] = '{0},1'.format(filename)
+        language = do_epoch('predict', 0)
+        return jsonify({
+            'language': languages.get(language, 'english'),
+            'time': time.time() - start
+        })
+    except:
+        print(traceback.format_exc())
+        return jsonify(result={"status": 500})
+
+if __name__ == "__main__":
+    application.run()

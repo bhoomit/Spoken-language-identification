@@ -5,7 +5,7 @@ import numpy as np
 caffe.set_mode_gpu()
 
 # info about classes
-file = open('trainingData.csv')
+file = open(root + 'trainingData.csv')
 data = file.readlines()[1:]
 langs = set()
 for line in data:
@@ -21,7 +21,8 @@ network_name = deploy_name + '_150K-momentum'
 iterations = '51000'
 
 net = caffe.Classifier(model_file='prototxt/deploy.' + deploy_name + '.prototxt',
-                       pretrained_file='models/' + network_name + '_iter_' + iterations + '.caffemodel')
+                       pretrained_file='models/model.pickle')
+# pretrained_file='models/' + network_name + '_iter_' + iterations + '.caffemodel')
 
 transformer = caffe.io.Transformer({'data': net.blobs['data'].data.shape})
 transformer.set_transpose('data', (2, 0, 1))
@@ -30,21 +31,21 @@ net.blobs['data'].reshape(1, 1, 256, 858)
 predict_set = sys.argv[1]
 
 if (predict_set == "test"):
-    folder = 'test/png/'
-    f = open('testingData.csv')
+    folder = 'data/png/'
+    f = open('data/testingData.csv')
     cnt = 12320
     print_file = open('predictions/test_' + network_name + '_iter_' + iterations + '.csv', 'w')
 elif (predict_set == "val"):
-    folder = '/home/brainstorm/caffe/Data/mnt/3/language/train/pngaugm/' ## stegh dreci augm
-    f = open('valDataNew.csv')
+    folder = 'data/png/' ## stegh dreci augm
+    f = open('data/valDataNew.csv')
     cnt = 16176
     print_file = open('predictions/validation_' + network_name + '_iter_' + iterations + '.csv', 'w')
 else: # train
-    folder = '/home/brainstorm/caffe/Data/mnt/3/language/train/png/'
-    f = open('trainingDataNew.csv')
+    folder = 'data/png/'
+    f = open('data/trainingDataNew.csv')
     cnt = 10000
     print_file = open('predictions/train_' + network_name + '_iter_' + iterations + '.csv', 'w')
-    
+
 preds = []
 labels = []
 topcoder_score = 0
@@ -58,22 +59,22 @@ for iter in range(cnt):
     else:
         name = st.strip()[:-4]
     processed += 1
-    
-    net.blobs['data'].data[...] = transformer.preprocess('data', 
+
+    net.blobs['data'].data[...] = transformer.preprocess('data',
         caffe.io.load_image(folder + name + '.png', color=False))
-    
+
     out = net.forward()['loss'][0]
 
     pred = sorted([(x, it) for it, x in enumerate(out)], reverse=True)
-    
+
     if (predict_set == "val" or predict_set == "train"):
         if (pred[0][1] == label):
             topcoder_score = topcoder_score + 1000
         elif (pred[1][1] == label):
             topcoder_score = topcoder_score + 400
-        elif (pred[2][1] == label): 
+        elif (pred[2][1] == label):
             topcoder_score = topcoder_score + 160
-    
+
     for i in range(3):
         lang_id = pred[i][1]
         lang = langs[lang_id]

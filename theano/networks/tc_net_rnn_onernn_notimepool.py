@@ -153,6 +153,7 @@ class Network(BaseNetwork):
             name = data_raw[i].split(',')[0]
             path = self.png_folder + name + ".png"
             im = Image.open(path)
+            im = im.resize((858, 256), Image.NEAREST)
             data[i - start_index, 0, :, :] = np.array(im).astype(np.float32)[:128, :] / 256.0
 
         answers = np.array(answers, dtype=np.int32)
